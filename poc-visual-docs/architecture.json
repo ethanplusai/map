@@ -1,0 +1,247 @@
+{
+  "$schema": "./schema.json",
+  "version": "1.0.0",
+  "title": "Core Platform Architecture",
+  "description": "Interactive system cartography for a 3-tier web application",
+  "root": {
+    "systems": [
+      {
+        "id": "sys-frontend",
+        "name": "Frontend Web Client",
+        "type": "client",
+        "badge": "React 19 / Vite",
+        "icon": "layout",
+        "position": { "x": 120, "y": 260 },
+        "summary": "Single Page Application delivering the user dashboard, authentication flows, and real-time event subscriptions.",
+        "metrics": {
+          "bundlesize": "284 kB gzipped",
+          "routeCount": 14,
+          "stateManagement": "Zustand + TanStack Query"
+        },
+        "internal": {
+          "title": "Frontend Subsystems",
+          "description": "Internal architectural layers and bounded presentation modules.",
+          "nodes": [
+            {
+              "id": "fe-auth-context",
+              "name": "Auth & Session Store",
+              "type": "state",
+              "badge": "Zustand",
+              "position": { "x": 100, "y": 140 },
+              "summary": "Maintains user token lifecycle, silent refresh timers, and RBAC permission checks in-memory.",
+              "details": {
+                "sourceLocation": "src/state/authStore.ts:18",
+                "invariants": "Refresh token never stored in localStorage (HttpOnly cookie), access token in volatile memory."
+              }
+            },
+            {
+              "id": "fe-pages",
+              "name": "View Hierarchy & Pages",
+              "type": "ui",
+              "badge": "React Router v7",
+              "position": { "x": 380, "y": 140 },
+              "summary": "Lazy-loaded route views: /dashboard, /billing, /team-management, and /settings.",
+              "details": {
+                "sourceLocation": "src/routes/index.tsx",
+                "invariants": "All private routes wrapped with ProtectedRoute barrier component."
+              }
+            },
+            {
+              "id": "fe-api-client",
+              "name": "API Gateway Client",
+              "type": "networking",
+              "badge": "Fetch Wrapper",
+              "position": { "x": 240, "y": 320 },
+              "summary": "Unified HTTP client with automatic Authorization header injection, retry exponential backoff, and 401 interceptors.",
+              "details": {
+                "sourceLocation": "src/lib/apiClient.ts:42",
+                "invariants": "Injects X-Request-ID trace header into every outbound request."
+              }
+            }
+          ],
+          "links": [
+            { "from": "fe-pages", "to": "fe-auth-context", "label": "reads session" },
+            { "from": "fe-pages", "to": "fe-api-client", "label": "invokes mutations" },
+            { "from": "fe-api-client", "to": "fe-auth-context", "label": "dispatches refresh on 401" }
+          ]
+        }
+      },
+      {
+        "id": "sys-backend",
+        "name": "Core Application Service",
+        "type": "service",
+        "badge": "FastAPI / Python 3.12",
+        "icon": "server",
+        "position": { "x": 580, "y": 260 },
+        "summary": "Primary application service hosting business logic, REST APIs, permission enforcement, and transaction orchestration.",
+        "metrics": {
+          "p99Latency": "42ms",
+          "activeWorkers": 4,
+          "framework": "Uvicorn + FastAPI"
+        },
+        "internal": {
+          "title": "Backend Domain Services",
+          "description": "Internal bounded contexts, routers, middleware, and database access abstraction layers.",
+          "nodes": [
+            {
+              "id": "be-middleware",
+              "name": "Security & Trace Middleware",
+              "type": "middleware",
+              "badge": "FastAPI Middleware",
+              "position": { "x": 100, "y": 120 },
+              "summary": "CORS pre-flight, rate-limiting (sliding window redis), distributed trace context extraction.",
+              "details": {
+                "sourceLocation": "app/middleware/trace.py:14",
+                "invariants": "Drops any request payload larger than 5MB with HTTP 413."
+              }
+            },
+            {
+              "id": "be-auth-svc",
+              "name": "Identity & Auth Domain",
+              "type": "domain",
+              "badge": "Argon2id + JWT",
+              "position": { "x": 360, "y": 100 },
+              "summary": "Handles login, password hashing, multi-factor verification tokens, and session revocation list.",
+              "details": {
+                "sourceLocation": "app/domains/auth/service.py:35",
+                "invariants": "Passwords hashed with Argon2id minimum memory cost 64MB."
+              }
+            },
+            {
+              "id": "be-billing-svc",
+              "name": "Billing & Subscription Domain",
+              "type": "domain",
+              "badge": "Stripe Sync",
+              "position": { "x": 360, "y": 240 },
+              "summary": "Manages tier entitlements, customer metered billing, webhook idempotent ingestion, and invoice states.",
+              "details": {
+                "sourceLocation": "app/domains/billing/service.py:52",
+                "invariants": "Webhook events deduplicated via idempotent lock before processing."
+              }
+            },
+            {
+              "id": "be-data-access",
+              "name": "ORM & Repository Layer",
+              "type": "data-layer",
+              "badge": "SQLAlchemy 2.0 Async",
+              "position": { "x": 620, "y": 180 },
+              "summary": "Async Unit of Work repository abstractions providing transactional atomicity and connection pooling.",
+              "details": {
+                "sourceLocation": "app/infra/database/session.py:28",
+                "invariants": "All write transactions execute under READ COMMITTED isolation."
+              }
+            }
+          ],
+          "links": [
+            { "from": "be-middleware", "to": "be-auth-svc", "label": "authenticates header" },
+            { "from": "be-middleware", "to": "be-billing-svc", "label": "forwards request" },
+            { "from": "be-auth-svc", "to": "be-data-access", "label": "user / credential queries" },
+            { "from": "be-billing-svc", "to": "be-data-access", "label": "ledger & subscription state" }
+          ]
+        }
+      },
+      {
+        "id": "sys-database",
+        "name": "Primary Datastore",
+        "type": "database",
+        "badge": "PostgreSQL 16",
+        "icon": "database",
+        "position": { "x": 1020, "y": 260 },
+        "summary": "ACID transactional relational database storing tenant accounts, users, entitlements, and event ledgers.",
+        "metrics": {
+          "tableCount": 24,
+          "storageSize": "4.2 GB",
+          "replicationLag": "0ms (Sync Standby)"
+        },
+        "internal": {
+          "title": "Relational Schema Topology",
+          "description": "Primary tables, relationship constraints, and index groupings.",
+          "nodes": [
+            {
+              "id": "db-users",
+              "name": "users & auth_tokens",
+              "type": "table",
+              "badge": "Relation (PK: UUID)",
+              "position": { "x": 120, "y": 140 },
+              "summary": "User profile records, hashed credentials, MFA secret seeds, status enum (ACTIVE, SUSPENDED).",
+              "details": {
+                "indices": "btree(email) UNIQUE, btree(tenant_id, created_at DESC)",
+                "foreignKeys": "tenant_id -> tenants(id) ON DELETE CASCADE"
+              }
+            },
+            {
+              "id": "db-tenants",
+              "name": "tenants & organizations",
+              "type": "table",
+              "badge": "Multi-tenant Root",
+              "position": { "x": 380, "y": 140 },
+              "summary": "Organization boundaries, plan limits, workspace configurations, and billing customer references.",
+              "details": {
+                "indices": "btree(slug) UNIQUE, btree(stripe_customer_id)",
+                "foreignKeys": "None (Root Entity)"
+              }
+            },
+            {
+              "id": "db-ledger",
+              "name": "subscription_events",
+              "type": "table",
+              "badge": "Append-only Ledger",
+              "position": { "x": 260, "y": 320 },
+              "summary": "Immutable log of invoice creations, plan downgrades, credit usage ticks, and audit events.",
+              "details": {
+                "indices": "brin(created_at), btree(tenant_id, event_type)",
+                "foreignKeys": "tenant_id -> tenants(id)"
+              }
+            }
+          ],
+          "links": [
+            { "from": "db-users", "to": "db-tenants", "label": "belongs to (N:1)" },
+            { "from": "db-ledger", "to": "db-tenants", "label": "scoped to (N:1)" }
+          ]
+        }
+      }
+    ],
+    "connectors": [
+      {
+        "id": "conn-fe-be",
+        "from": "sys-frontend",
+        "to": "sys-backend",
+        "name": "Client-to-Service REST Bridge",
+        "protocol": "HTTPS (TLS 1.3) / JSON REST",
+        "port": "443",
+        "auth": "Bearer JWT (Access Token 15m) + Cookie (Refresh 7d)",
+        "summary": "Synchronous request/response pipeline handling all client interactions, data queries, and command mutations.",
+        "specs": {
+          "corsPolicy": "Allowed-Origins: https://app.example.com; Allow-Credentials: true",
+          "compression": "gzip, br",
+          "rateLimit": "120 req / minute per authenticated IP"
+        },
+        "endpoints": [
+          { "method": "POST", "path": "/api/v1/auth/login", "desc": "Authenticates credentials and sets HTTP-only refresh cookie", "contract": "{ email, password } -> { accessToken, user }" },
+          { "method": "POST", "path": "/api/v1/auth/refresh", "desc": "Rotates refresh token and returns fresh access token", "contract": "Cookie(refresh_token) -> { accessToken }" },
+          { "method": "GET", "path": "/api/v1/dashboard/summary", "desc": "Aggregates tenant metrics and recent activity feeds", "contract": "Bearer -> { kpis: [...], recentEvents: [...] }" },
+          { "method": "POST", "path": "/api/v1/billing/checkout", "desc": "Creates Stripe checkout session for plan upgrade", "contract": "{ planId, cancelUrl } -> { checkoutUrl }" }
+        ]
+      },
+      {
+        "id": "conn-be-db",
+        "from": "sys-backend",
+        "to": "sys-database",
+        "name": "Postgres Connection Pool",
+        "protocol": "PostgreSQL Wire Protocol (v3) over TCP",
+        "port": "5432",
+        "auth": "SCRAM-SHA-256 + TLS Mutual Verification",
+        "summary": "Persistent async connection pool running via asyncpg/SQLAlchemy with automated connection health probes.",
+        "specs": {
+          "poolSize": "Min: 5, Max: 25 connections per worker",
+          "statementTimeout": "5000ms",
+          "idleTimeout": "300s"
+        },
+        "endpoints": [
+          { "method": "SQL", "path": "tenant_isolation_policy", "desc": "Row-Level Security (RLS) enforcement set per transaction: SET LOCAL app.current_tenant_id = $1", "contract": "Session Variable -> Tenant Boundary" },
+          { "method": "MIGRATE", "path": "alembic_version", "desc": "Strict linear schema migration table tracking active schema revision hash", "contract": "Alembic Version Check" }
+        ]
+      }
+    ]
+  }
+}
