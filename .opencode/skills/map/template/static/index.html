@@ -18,7 +18,6 @@
       --accent-amber: #fbbf24;
       --card-bg: #151d2c;
       --card-border: #233047;
-      --card-hover: #1c273a;
       --grid-line: rgba(255, 255, 255, 0.03);
     }
 
@@ -185,14 +184,15 @@
       transform: translateY(-1px);
     }
 
-    /* Nodes & SVG Elements */
+    /* SVG Canvas Elements */
     svg.canvas-svg {
       position: absolute;
       top: 0;
       left: 0;
-      width: 2400px;
-      height: 1400px;
+      width: 3600px;
+      height: 2400px;
       overflow: visible;
+      pointer-events: none;
     }
 
     /* Connectors */
@@ -202,6 +202,7 @@
       stroke-linecap: round;
       fill: none;
       transition: stroke 0.2s ease, stroke-width 0.2s ease;
+      pointer-events: stroke;
       cursor: pointer;
     }
 
@@ -216,8 +217,9 @@
 
     .connector-hitbox {
       stroke: transparent;
-      stroke-width: 32;
+      stroke-width: 28;
       fill: none;
+      pointer-events: stroke;
       cursor: pointer;
     }
 
@@ -250,7 +252,7 @@
       color: #94a3b8;
       cursor: pointer;
       box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
       z-index: 10;
     }
 
@@ -259,7 +261,6 @@
       color: #fff;
       border-color: var(--accent);
       box-shadow: 0 0 16px var(--accent-glow), 0 8px 24px rgba(0,0,0,0.6);
-      transform: translate(-50%, -50%) scale(1.05);
     }
 
     .protocol-dot {
@@ -270,6 +271,25 @@
       box-shadow: 0 0 8px var(--accent-emerald);
     }
 
+    /* Drag Handle Gripper Bar */
+    .drag-handle {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.15);
+      cursor: move;
+      transition: background 0.15s;
+    }
+
+    .system-node:hover .drag-handle,
+    .subsystem-node:hover .drag-handle {
+      background: var(--accent);
+    }
+
     /* System Blocks */
     .system-node {
       position: absolute;
@@ -277,22 +297,23 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 16px;
-      padding: 20px;
-      cursor: pointer;
+      padding: 22px 20px 18px 20px;
+      cursor: move;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: border-color 0.2s, box-shadow 0.2s;
       z-index: 5;
     }
 
     .system-node:hover {
-      transform: translateY(-4px);
       border-color: rgba(56, 189, 248, 0.6);
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 24px var(--accent-glow);
     }
 
-    .system-node.selected {
+    .system-node.dragging {
+      z-index: 25;
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--accent), 0 16px 36px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.8), 0 0 28px var(--accent-glow);
+      cursor: grabbing !important;
     }
 
     .node-header {
@@ -312,6 +333,7 @@
       font-size: 20px;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
+      pointer-events: none;
     }
 
     .node-title-group h3 {
@@ -335,6 +357,7 @@
       line-height: 1.45;
       color: var(--text-muted);
       margin-bottom: 14px;
+      pointer-events: none;
     }
 
     .node-metrics {
@@ -344,6 +367,7 @@
       padding-top: 12px;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
       font-size: 11.5px;
+      pointer-events: none;
     }
 
     .metric-row {
@@ -358,20 +382,26 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
-    .drilldown-hint {
+    .drilldown-btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 11px;
       font-weight: 600;
       color: var(--accent);
-      margin-top: 12px;
-      opacity: 0.8;
-      transition: opacity 0.15s;
+      margin-top: 14px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
 
-    .system-node:hover .drilldown-hint {
-      opacity: 1;
+    .drilldown-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent);
+      color: #fff;
     }
 
     /* Subsystem Nodes (LOD 1) */
@@ -381,23 +411,30 @@
       background: #111827;
       border: 1px solid #1f293d;
       border-radius: 12px;
-      padding: 16px;
-      cursor: pointer;
+      padding: 20px 16px 16px 16px;
+      cursor: move;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      transition: all 0.2s ease;
+      transition: border-color 0.2s, box-shadow 0.2s;
       z-index: 5;
     }
 
     .subsystem-node:hover {
       border-color: var(--accent-purple);
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 18px rgba(192, 132, 252, 0.25);
-      transform: translateY(-2px);
+    }
+
+    .subsystem-node.dragging {
+      z-index: 25;
+      border-color: var(--accent-purple);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 24px rgba(192, 132, 252, 0.4);
+      cursor: grabbing !important;
     }
 
     .subsystem-title {
       font-size: 14px;
       font-weight: 600;
       color: #fff;
+      pointer-events: none;
     }
 
     .subsystem-badge {
@@ -405,12 +442,14 @@
       font-weight: 600;
       color: var(--accent-purple);
       margin-bottom: 8px;
+      pointer-events: none;
     }
 
     .subsystem-desc {
       font-size: 11.5px;
       color: var(--text-muted);
       line-height: 1.4;
+      pointer-events: none;
     }
 
     /* Side Detail Drawer (Inspection Panel) */
@@ -611,17 +650,22 @@
     class ArchMapApp {
       constructor() {
         this.manifest = null;
-        this.currentLevel = "overworld"; // "overworld" | "system" | "connector"
+        this.currentLevel = "overworld"; // "overworld" | "system"
         this.activeSystemId = null;
-        this.activeConnectorId = null;
 
         // Camera State
         this.camX = 100;
         this.camY = 100;
         this.scale = 1.0;
-        this.isDragging = false;
-        this.dragStartX = 0;
-        this.dragStartY = 0;
+        this.isPanning = false;
+        this.panStartX = 0;
+        this.panStartY = 0;
+
+        // Node Dragging State
+        this.draggedNode = null;
+        this.dragStartNodePos = { x: 0, y: 0 };
+        this.dragStartPointer = { x: 0, y: 0 };
+        this.hasMovedSignificantly = false;
 
         // Elements
         this.viewport = document.getElementById("viewport");
@@ -648,27 +692,74 @@
       }
 
       initEvents() {
-        // Pan viewport dragging
+        // Pointer down: disambiguate viewport pan vs node drag
         this.viewport.addEventListener("mousedown", (e) => {
-          if (e.target.closest(".system-node, .subsystem-node, .connector-badge, #inspector, .hud-header, .hud-controls")) {
+          if (e.target.closest("#inspector, .hud-header, .hud-controls, .connector-badge, .drilldown-btn")) {
             return;
           }
-          this.isDragging = true;
-          this.dragStartX = e.clientX - this.camX;
-          this.dragStartY = e.clientY - this.camY;
-          this.viewport.classList.add("dragging");
+
+          const nodeEl = e.target.closest(".system-node, .subsystem-node");
+          if (nodeEl) {
+            // Dragging a component node
+            this.draggedNode = {
+              id: nodeEl.dataset.id,
+              type: nodeEl.dataset.type, // 'system' | 'subsystem'
+              el: nodeEl
+            };
+
+            const dataObj = this.findNodeData(this.draggedNode.id, this.draggedNode.type);
+            this.dragStartNodePos = { ...dataObj.position };
+            this.dragStartPointer = { x: e.clientX, y: e.clientY };
+            this.hasMovedSignificantly = false;
+            nodeEl.classList.add("dragging");
+            e.stopPropagation();
+          } else {
+            // Panning the canvas
+            this.isPanning = true;
+            this.panStartX = e.clientX - this.camX;
+            this.panStartY = e.clientY - this.camY;
+            this.viewport.classList.add("dragging");
+          }
         });
 
         window.addEventListener("mousemove", (e) => {
-          if (!this.isDragging) return;
-          this.camX = e.clientX - this.dragStartX;
-          this.camY = e.clientY - this.dragStartY;
-          this.updateTransform();
+          if (this.draggedNode) {
+            const dx = (e.clientX - this.dragStartPointer.x) / this.scale;
+            const dy = (e.clientY - this.dragStartPointer.y) / this.scale;
+
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+              this.hasMovedSignificantly = true;
+            }
+
+            const dataObj = this.findNodeData(this.draggedNode.id, this.draggedNode.type);
+            dataObj.position.x = Math.round(this.dragStartNodePos.x + dx);
+            dataObj.position.y = Math.round(this.dragStartNodePos.y + dy);
+
+            // Update DOM element position instantly
+            this.draggedNode.el.style.left = `${dataObj.position.x}px`;
+            this.draggedNode.el.style.top = `${dataObj.position.y}px`;
+
+            // Live-update connector lines and badges
+            this.updateConnectorsOnly();
+            return;
+          }
+
+          if (this.isPanning) {
+            this.camX = e.clientX - this.panStartX;
+            this.camY = e.clientY - this.panStartY;
+            this.updateTransform();
+          }
         });
 
         window.addEventListener("mouseup", () => {
-          this.isDragging = false;
-          this.viewport.classList.remove("dragging");
+          if (this.draggedNode) {
+            this.draggedNode.el.classList.remove("dragging");
+            this.draggedNode = null;
+          }
+          if (this.isPanning) {
+            this.isPanning = false;
+            this.viewport.classList.remove("dragging");
+          }
         });
 
         // Wheel Zoom
@@ -677,9 +768,8 @@
           const zoomFactor = 1.08;
           const oldScale = this.scale;
           let newScale = e.deltaY < 0 ? oldScale * zoomFactor : oldScale / zoomFactor;
-          newScale = Math.min(Math.max(0.4, newScale), 2.5);
+          newScale = Math.min(Math.max(0.3, newScale), 2.5);
 
-          // Zoom toward cursor
           const rect = this.viewport.getBoundingClientRect();
           const mouseX = e.clientX - rect.left;
           const mouseY = e.clientY - rect.top;
@@ -689,6 +779,15 @@
           this.scale = newScale;
           this.updateTransform();
         }, { passive: false });
+      }
+
+      findNodeData(id, type) {
+        if (type === "system") {
+          return this.manifest.root.systems.find(s => s.id === id);
+        } else {
+          const sys = this.manifest.root.systems.find(s => s.id === this.activeSystemId);
+          return sys?.internal?.nodes?.find(n => n.id === id);
+        }
       }
 
       updateTransform() {
@@ -701,7 +800,7 @@
       }
 
       zoomOut() {
-        this.scale = Math.max(0.4, this.scale / 1.25);
+        this.scale = Math.max(0.3, this.scale / 1.25);
         this.updateTransform();
       }
 
@@ -709,7 +808,7 @@
         if (this.currentLevel === "overworld") {
           this.centerOverview();
         } else if (this.activeSystemId) {
-          this.focusSystem(this.activeSystemId);
+          this.centerSubsystems();
         }
       }
 
@@ -722,77 +821,34 @@
         this.updateTransform();
       }
 
-      render() {
-        this.svg.innerHTML = "";
-        this.nodesContainer.innerHTML = "";
-        this.badgesContainer.innerHTML = "";
+      centerSubsystems() {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        this.scale = 1.0;
+        this.camX = (vw - 800) / 2;
+        this.camY = (vh - 500) / 2;
+        this.updateTransform();
+      }
 
+      render() {
+        this.nodesContainer.innerHTML = "";
         if (this.currentLevel === "overworld") {
-          this.renderOverworld();
+          this.renderOverworldNodes();
         } else if (this.currentLevel === "system") {
-          this.renderSystemDrilldown(this.activeSystemId);
+          this.renderSystemSubsystemNodes(this.activeSystemId);
         }
+        this.updateConnectorsOnly();
         this.updateBreadcrumbs();
       }
 
-      renderOverworld() {
+      renderOverworldNodes() {
         const systems = this.manifest.root.systems;
-        const connectors = this.manifest.root.connectors;
 
-        // Render connectors paths
-        connectors.forEach((conn) => {
-          const fromNode = systems.find(s => s.id === conn.from);
-          const toNode = systems.find(s => s.id === conn.to);
-          if (!fromNode || !toNode) return;
-
-          const x1 = fromNode.position.x + 270;
-          const y1 = fromNode.position.y + 110;
-          const x2 = toNode.position.x;
-          const y2 = toNode.position.y + 110;
-
-          const dx = (x2 - x1) * 0.5;
-          const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-
-          // Underlay hitbox for easy clicking
-          const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          hitbox.setAttribute("d", pathD);
-          hitbox.setAttribute("class", "connector-hitbox");
-          hitbox.addEventListener("click", () => this.inspectConnector(conn));
-          this.svg.appendChild(hitbox);
-
-          // Static trace
-          const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          base.setAttribute("d", pathD);
-          base.setAttribute("class", "connector-path");
-          base.setAttribute("id", `path-${conn.id}`);
-          this.svg.appendChild(base);
-
-          // Flow pulses
-          const flow = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          flow.setAttribute("d", pathD);
-          flow.setAttribute("class", "connector-flow");
-          this.svg.appendChild(flow);
-
-          // Interactive badge in middle of path
-          const midX = (x1 + x2) / 2;
-          const midY = (y1 + y2) / 2;
-
-          const badge = document.createElement("div");
-          badge.className = "connector-badge";
-          badge.style.left = `${midX}px`;
-          badge.style.top = `${midY}px`;
-          badge.innerHTML = `
-            <div class="protocol-dot"></div>
-            <span>${conn.protocol}</span>
-          `;
-          badge.addEventListener("click", () => this.inspectConnector(conn));
-          this.badgesContainer.appendChild(badge);
-        });
-
-        // Render System Nodes
         systems.forEach((sys) => {
           const node = document.createElement("div");
           node.className = "system-node";
+          node.dataset.id = sys.id;
+          node.dataset.type = "system";
           node.style.left = `${sys.position.x}px`;
           node.style.top = `${sys.position.y}px`;
 
@@ -801,7 +857,6 @@
             server: "&#x25A4;",
             database: "&#x229E;"
           };
-
           const iconChar = iconMap[sys.icon] || "&#x25CB;";
 
           let metricsHtml = "";
@@ -815,6 +870,7 @@
           }
 
           node.innerHTML = `
+            <div class="drag-handle" title="Drag component to reposition"></div>
             <div class="node-header">
               <div class="node-icon-box">${iconChar}</div>
               <div class="node-title-group">
@@ -826,69 +882,42 @@
             <div class="node-metrics">
               ${metricsHtml}
             </div>
-            <div class="drilldown-hint">
+            <div class="drilldown-btn" data-action="drill">
               <span>Drill into subsystem</span> &rarr;
             </div>
           `;
 
-          node.addEventListener("click", () => {
-            this.drillIntoSystem(sys.id);
+          // Click handling: inspect if wasn't dragged
+          node.addEventListener("click", (e) => {
+            if (this.hasMovedSignificantly) return;
+            const drillBtn = e.target.closest('[data-action="drill"]');
+            if (drillBtn) {
+              this.drillIntoSystem(sys.id);
+            } else {
+              this.inspectSystem(sys);
+            }
           });
 
           this.nodesContainer.appendChild(node);
         });
       }
 
-      renderSystemDrilldown(sysId) {
+      renderSystemSubsystemNodes(sysId) {
         const sys = this.manifest.root.systems.find(s => s.id === sysId);
         if (!sys || !sys.internal) return;
 
-        const internal = sys.internal;
-        const nodes = internal.nodes || [];
-        const links = internal.links || [];
+        const nodes = sys.internal.nodes || [];
 
-        // Render Internal Links
-        links.forEach((l) => {
-          const fromNode = nodes.find(n => n.id === l.from);
-          const toNode = nodes.find(n => n.id === l.to);
-          if (!fromNode || !toNode) return;
-
-          const x1 = fromNode.position.x + 230;
-          const y1 = fromNode.position.y + 50;
-          const x2 = toNode.position.x;
-          const y2 = toNode.position.y + 50;
-
-          const pathD = `M ${x1} ${y1} C ${(x1 + x2)/2} ${y1}, ${(x1 + x2)/2} ${y2}, ${x2} ${y2}`;
-
-          const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          base.setAttribute("d", pathD);
-          base.setAttribute("class", "connector-path");
-          this.svg.appendChild(base);
-
-          const flow = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          flow.setAttribute("d", pathD);
-          flow.setAttribute("class", "connector-flow");
-          flow.style.stroke = "var(--accent-purple)";
-          this.svg.appendChild(flow);
-
-          // Midpoint label
-          const badge = document.createElement("div");
-          badge.className = "connector-badge";
-          badge.style.left = `${(x1 + x2)/2}px`;
-          badge.style.top = `${(y1 + y2)/2}px`;
-          badge.style.borderColor = "rgba(192, 132, 252, 0.4)";
-          badge.innerHTML = `<span style="color:#d8b4fe; font-size:11px;">${l.label}</span>`;
-          this.badgesContainer.appendChild(badge);
-        });
-
-        // Render Internal Nodes
         nodes.forEach((n) => {
           const card = document.createElement("div");
           card.className = "subsystem-node";
+          card.dataset.id = n.id;
+          card.dataset.type = "subsystem";
           card.style.left = `${n.position.x}px`;
           card.style.top = `${n.position.y}px`;
 
           card.innerHTML = `
+            <div class="drag-handle" title="Drag component to reposition"></div>
             <div class="subsystem-badge">${n.badge}</div>
             <div class="subsystem-title">${n.name}</div>
             <div class="subsystem-desc" style="margin-top: 8px;">${n.summary}</div>
@@ -899,8 +928,8 @@
             ` : ""}
           `;
 
-          card.addEventListener("click", (e) => {
-            e.stopPropagation();
+          card.addEventListener("click", () => {
+            if (this.hasMovedSignificantly) return;
             this.inspectSubsystemNode(n, sys.name);
           });
 
@@ -908,15 +937,121 @@
         });
       }
 
+      updateConnectorsOnly() {
+        this.svg.innerHTML = "";
+        this.badgesContainer.innerHTML = "";
+
+        if (this.currentLevel === "overworld") {
+          const systems = this.manifest.root.systems;
+          const connectors = this.manifest.root.connectors;
+
+          connectors.forEach((conn) => {
+            const fromNode = systems.find(s => s.id === conn.from);
+            const toNode = systems.find(s => s.id === conn.to);
+            if (!fromNode || !toNode) return;
+
+            // Connect boundary edges based on relative position
+            const fromCenter = { x: fromNode.position.x + 135, y: fromNode.position.y + 110 };
+            const toCenter = { x: toNode.position.x + 135, y: toNode.position.y + 110 };
+
+            let x1 = fromNode.position.x + 270;
+            let y1 = fromCenter.y;
+            let x2 = toNode.position.x;
+            let y2 = toCenter.y;
+
+            if (fromCenter.x > toCenter.x) {
+              x1 = fromNode.position.x;
+              x2 = toNode.position.x + 270;
+            }
+
+            const dx = Math.abs(x2 - x1) * 0.5;
+            const pathD = `M ${x1} ${y1} C ${x1 + (x2 > x1 ? dx : -dx)} ${y1}, ${x2 - (x2 > x1 ? dx : -dx)} ${y2}, ${x2} ${y2}`;
+
+            // Hitbox
+            const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            hitbox.setAttribute("d", pathD);
+            hitbox.setAttribute("class", "connector-hitbox");
+            hitbox.addEventListener("click", () => this.inspectConnector(conn));
+            this.svg.appendChild(hitbox);
+
+            // Path line
+            const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            base.setAttribute("d", pathD);
+            base.setAttribute("class", "connector-path");
+            base.setAttribute("id", `path-${conn.id}`);
+            this.svg.appendChild(base);
+
+            // Animated flow line
+            const flow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            flow.setAttribute("d", pathD);
+            flow.setAttribute("class", "connector-flow");
+            this.svg.appendChild(flow);
+
+            // Midpoint badge
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+
+            const badge = document.createElement("div");
+            badge.className = "connector-badge";
+            badge.style.left = `${midX}px`;
+            badge.style.top = `${midY}px`;
+            badge.innerHTML = `
+              <div class="protocol-dot"></div>
+              <span>${conn.protocol}</span>
+            `;
+            badge.addEventListener("click", () => this.inspectConnector(conn));
+            this.badgesContainer.appendChild(badge);
+          });
+        } else if (this.currentLevel === "system") {
+          const sys = this.manifest.root.systems.find(s => s.id === this.activeSystemId);
+          if (!sys || !sys.internal) return;
+
+          const nodes = sys.internal.nodes || [];
+          const links = sys.internal.links || [];
+
+          links.forEach((l) => {
+            const fromNode = nodes.find(n => n.id === l.from);
+            const toNode = nodes.find(n => n.id === l.to);
+            if (!fromNode || !toNode) return;
+
+            const x1 = fromNode.position.x + (fromNode.position.x < toNode.position.x ? 230 : 0);
+            const y1 = fromNode.position.y + 50;
+            const x2 = toNode.position.x + (fromNode.position.x < toNode.position.x ? 0 : 230);
+            const y2 = toNode.position.y + 50;
+
+            const dx = Math.abs(x2 - x1) * 0.5;
+            const pathD = `M ${x1} ${y1} C ${x1 + (x2 > x1 ? dx : -dx)} ${y1}, ${x2 - (x2 > x1 ? dx : -dx)} ${y2}, ${x2} ${y2}`;
+
+            const base = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            base.setAttribute("d", pathD);
+            base.setAttribute("class", "connector-path");
+            this.svg.appendChild(base);
+
+            const flow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            flow.setAttribute("d", pathD);
+            flow.setAttribute("class", "connector-flow");
+            flow.style.stroke = "var(--accent-purple)";
+            this.svg.appendChild(flow);
+
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+
+            const badge = document.createElement("div");
+            badge.className = "connector-badge";
+            badge.style.left = `${midX}px`;
+            badge.style.top = `${midY}px`;
+            badge.style.borderColor = "rgba(192, 132, 252, 0.4)";
+            badge.innerHTML = `<span style="color:#d8b4fe; font-size:11px;">${l.label}</span>`;
+            this.badgesContainer.appendChild(badge);
+          });
+        }
+      }
+
       drillIntoSystem(sysId) {
         this.currentLevel = "system";
         this.activeSystemId = sysId;
         this.render();
-        this.camX = 140;
-        this.camY = 140;
-        this.scale = 1.0;
-        this.updateTransform();
-
+        this.centerSubsystems();
         const sys = this.manifest.root.systems.find(s => s.id === sysId);
         this.inspectSystem(sys);
       }
