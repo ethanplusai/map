@@ -19,50 +19,90 @@
           "stateManagement": "Zustand + TanStack Query"
         },
         "internal": {
-          "title": "Frontend Subsystems",
-          "description": "Internal architectural layers and bounded presentation modules.",
+          "title": "Frontend Application Atlas",
+          "description": "Client-side page routing hierarchy, global state stores, and networking clients.",
           "nodes": [
             {
-              "id": "fe-auth-context",
-              "name": "Auth & Session Store",
-              "type": "state",
-              "badge": "Zustand",
-              "position": { "x": 100, "y": 140 },
-              "summary": "Maintains user token lifecycle, silent refresh timers, and RBAC permission checks in-memory.",
+              "id": "fe-root-layout",
+              "name": "AppLayout & Shell",
+              "type": "layout",
+              "badge": "Root Shell",
+              "position": { "x": 80, "y": 80 },
+              "summary": "Global navigation sidebar, topbar user menu, theme switcher, and toast notifications provider.",
               "details": {
-                "sourceLocation": "src/state/authStore.ts:18",
-                "invariants": "Refresh token never stored in localStorage (HttpOnly cookie), access token in volatile memory."
+                "sourceLocation": "src/layouts/AppLayout.tsx:14",
+                "invariants": "Renders unauthenticated banner when offline; intercepts global window errors."
               }
             },
             {
-              "id": "fe-pages",
-              "name": "View Hierarchy & Pages",
-              "type": "ui",
-              "badge": "React Router v7",
-              "position": { "x": 380, "y": 140 },
-              "summary": "Lazy-loaded route views: /dashboard, /billing, /team-management, and /settings.",
+              "id": "fe-page-auth",
+              "name": "/login & /signup",
+              "type": "page",
+              "badge": "Public Route",
+              "position": { "x": 80, "y": 260 },
+              "summary": "Credentials input, passwordless magic links, and OAuth redirect callback handlers.",
               "details": {
-                "sourceLocation": "src/routes/index.tsx",
-                "invariants": "All private routes wrapped with ProtectedRoute barrier component."
+                "sourceLocation": "src/pages/auth/LoginPage.tsx:22",
+                "invariants": "Rate-limited client-side after 5 invalid attempts with exponential backoff."
+              }
+            },
+            {
+              "id": "fe-page-dash",
+              "name": "/dashboard",
+              "type": "page",
+              "badge": "Protected View",
+              "position": { "x": 420, "y": 80 },
+              "summary": "Real-time metrics widgets, tenant usage charts, and recent activity audit logs.",
+              "details": {
+                "sourceLocation": "src/pages/DashboardPage.tsx:45",
+                "invariants": "Requires active session token; renders skeleton loader during query hydration."
+              }
+            },
+            {
+              "id": "fe-page-billing",
+              "name": "/settings/billing",
+              "type": "page",
+              "badge": "Protected View",
+              "position": { "x": 420, "y": 260 },
+              "summary": "Stripe subscription portal, seat allocation, invoice history downloads, and payment methods.",
+              "details": {
+                "sourceLocation": "src/pages/settings/BillingPage.tsx:31",
+                "invariants": "Restricted to users with role >= ORG_ADMIN."
+              }
+            },
+            {
+              "id": "fe-auth-store",
+              "name": "Auth & Session Store",
+              "type": "state",
+              "badge": "Zustand Store",
+              "position": { "x": 760, "y": 80 },
+              "summary": "In-memory reactive token store, silent refresh scheduler, and user permission claims evaluator.",
+              "details": {
+                "sourceLocation": "src/state/authStore.ts:18",
+                "invariants": "Access token strictly in memory; refresh token secured via HttpOnly cookie."
               }
             },
             {
               "id": "fe-api-client",
               "name": "API Gateway Client",
               "type": "networking",
-              "badge": "Fetch Wrapper",
-              "position": { "x": 240, "y": 320 },
-              "summary": "Unified HTTP client with automatic Authorization header injection, retry exponential backoff, and 401 interceptors.",
+              "badge": "HTTP Client",
+              "position": { "x": 760, "y": 260 },
+              "summary": "Axios/Fetch wrapper with automatic Bearer token injection, retry on 503, and 401 refresh interception.",
               "details": {
-                "sourceLocation": "src/lib/apiClient.ts:42",
-                "invariants": "Injects X-Request-ID trace header into every outbound request."
+                "sourceLocation": "src/lib/apiClient.ts:50",
+                "invariants": "Generates unique X-Request-ID trace header per outbound invocation."
               }
             }
           ],
           "links": [
-            { "from": "fe-pages", "to": "fe-auth-context", "label": "reads session" },
-            { "from": "fe-pages", "to": "fe-api-client", "label": "invokes mutations" },
-            { "from": "fe-api-client", "to": "fe-auth-context", "label": "dispatches refresh on 401" }
+            { "from": "fe-root-layout", "to": "fe-page-dash", "label": "renders route" },
+            { "from": "fe-root-layout", "to": "fe-page-auth", "label": "renders route" },
+            { "from": "fe-page-dash", "to": "fe-page-billing", "label": "nav link" },
+            { "from": "fe-page-auth", "to": "fe-auth-store", "label": "sets tokens on login" },
+            { "from": "fe-page-dash", "to": "fe-api-client", "label": "queries telemetry" },
+            { "from": "fe-page-billing", "to": "fe-api-client", "label": "triggers checkout" },
+            { "from": "fe-api-client", "to": "fe-auth-store", "label": "reads token & triggers refresh" }
           ]
         }
       },
@@ -80,7 +120,7 @@
           "framework": "Uvicorn + FastAPI"
         },
         "internal": {
-          "title": "Backend Domain Services",
+          "title": "Backend Service Topology",
           "description": "Internal bounded contexts, routers, middleware, and database access abstraction layers.",
           "nodes": [
             {
@@ -88,7 +128,7 @@
               "name": "Security & Trace Middleware",
               "type": "middleware",
               "badge": "FastAPI Middleware",
-              "position": { "x": 100, "y": 120 },
+              "position": { "x": 80, "y": 140 },
               "summary": "CORS pre-flight, rate-limiting (sliding window redis), distributed trace context extraction.",
               "details": {
                 "sourceLocation": "app/middleware/trace.py:14",
@@ -100,7 +140,7 @@
               "name": "Identity & Auth Domain",
               "type": "domain",
               "badge": "Argon2id + JWT",
-              "position": { "x": 360, "y": 100 },
+              "position": { "x": 400, "y": 80 },
               "summary": "Handles login, password hashing, multi-factor verification tokens, and session revocation list.",
               "details": {
                 "sourceLocation": "app/domains/auth/service.py:35",
@@ -112,7 +152,7 @@
               "name": "Billing & Subscription Domain",
               "type": "domain",
               "badge": "Stripe Sync",
-              "position": { "x": 360, "y": 240 },
+              "position": { "x": 400, "y": 260 },
               "summary": "Manages tier entitlements, customer metered billing, webhook idempotent ingestion, and invoice states.",
               "details": {
                 "sourceLocation": "app/domains/billing/service.py:52",
@@ -124,7 +164,7 @@
               "name": "ORM & Repository Layer",
               "type": "data-layer",
               "badge": "SQLAlchemy 2.0 Async",
-              "position": { "x": 620, "y": 180 },
+              "position": { "x": 740, "y": 170 },
               "summary": "Async Unit of Work repository abstractions providing transactional atomicity and connection pooling.",
               "details": {
                 "sourceLocation": "app/infra/database/session.py:28",
@@ -162,7 +202,7 @@
               "name": "users & auth_tokens",
               "type": "table",
               "badge": "Relation (PK: UUID)",
-              "position": { "x": 120, "y": 140 },
+              "position": { "x": 100, "y": 120 },
               "summary": "User profile records, hashed credentials, MFA secret seeds, status enum (ACTIVE, SUSPENDED).",
               "details": {
                 "indices": "btree(email) UNIQUE, btree(tenant_id, created_at DESC)",
@@ -174,7 +214,7 @@
               "name": "tenants & organizations",
               "type": "table",
               "badge": "Multi-tenant Root",
-              "position": { "x": 380, "y": 140 },
+              "position": { "x": 420, "y": 120 },
               "summary": "Organization boundaries, plan limits, workspace configurations, and billing customer references.",
               "details": {
                 "indices": "btree(slug) UNIQUE, btree(stripe_customer_id)",
@@ -186,7 +226,7 @@
               "name": "subscription_events",
               "type": "table",
               "badge": "Append-only Ledger",
-              "position": { "x": 260, "y": 320 },
+              "position": { "x": 260, "y": 280 },
               "summary": "Immutable log of invoice creations, plan downgrades, credit usage ticks, and audit events.",
               "details": {
                 "indices": "brin(created_at), btree(tenant_id, event_type)",
