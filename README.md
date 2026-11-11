@@ -52,20 +52,20 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173) in your browser.
 
 ## OpenCode Skill Integration
 
-This repository includes an OpenCode skill under `.opencode/skills/map`.
+The skill definition is `SKILL.md` at the repository root, and the slash commands live in `commands/`. Running `./install.sh` copies the commands into `~/.opencode/commands`.
 
 ### Available Commands:
 - `/map init` (or `/map scan`): Performs a full semantic discovery scan of your repository, infers systems, connectors, and invariants, and initializes `.map/`.
 - `/map update`: Scans recent git diffs (`HEAD~1` or staged) and incrementally updates `.map/architecture.json` without shuffling existing spatial node coordinates.
 - `/map serve`: Launches the local spatial viewer.
-- `/map hook`: Installs git post-commit hooks to keep your architecture cartography updated with every commit.
+- `/map hook` (planned, see Roadmap): Will install git post-commit hooks to keep your architecture cartography updated with every commit.
 
 ### Using Globally in OpenCode
-To use `/map` in any project on your machine, copy the skill to your global OpenCode skills directory:
+To use `/map` in any project on your machine, copy the skill and the viewer template it uses (`poc-visual-docs/`) to your global OpenCode skills directory. Run this from the repository root:
 
 ```bash
-mkdir -p ~/.config/opencode/skills
-cp -r .opencode/skills/map ~/.config/opencode/skills/
+mkdir -p ~/.config/opencode/skills/map
+cp -r SKILL.md poc-visual-docs ~/.config/opencode/skills/map/
 ```
 
 Then in any project session:
