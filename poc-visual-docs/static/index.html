@@ -698,6 +698,18 @@
   </footer>
 
   <script>
+    // Manifest text is plain text: escape it before it goes into innerHTML.
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    // Optional fields that are missing render as a dash instead of "undefined".
+    function escOrDash(value) {
+      return value === undefined || value === null || value === "" ? "&mdash;" : esc(value);
+    }
+
     class ArchMapApp {
       constructor() {
         this.manifest = null;
@@ -717,6 +729,7 @@
         this.dragStartNodePos = { x: 0, y: 0 };
         this.dragStartPointer = { x: 0, y: 0 };
         this.hasMovedSignificantly = false;
+        this.cameraMovedByUser = false;
 
         // Elements
         this.viewport = document.getElementById("viewport");
@@ -805,6 +818,7 @@
           if (this.isPanning) {
             this.camX = e.clientX - this.panStartX;
             this.camY = e.clientY - this.panStartY;
+            this.cameraMovedByUser = true;
             this.updateTransform();
           }
         });
@@ -835,8 +849,16 @@
           this.camX = mouseX - (mouseX - this.camX) * (newScale / oldScale);
           this.camY = mouseY - (mouseY - this.camY) * (newScale / oldScale);
           this.scale = newScale;
+          this.cameraMovedByUser = true;
           this.updateTransform();
         }, { passive: false });
+
+        // Re-fit when the viewport changes size (including a hidden page or a
+        // collapsed container becoming visible) unless the user has already
+        // panned or zoomed.
+        new ResizeObserver(() => {
+          if (this.manifest && !this.cameraMovedByUser) this.fitToContent();
+        }).observe(this.viewport);
       }
 
       findNodeData(id, type) {
@@ -854,11 +876,13 @@
 
       zoomIn() {
         this.scale = Math.min(2.5, this.scale * 1.25);
+        this.cameraMovedByUser = true;
         this.updateTransform();
       }
 
       zoomOut() {
         this.scale = Math.max(0.3, this.scale / 1.25);
+        this.cameraMovedByUser = true;
         this.updateTransform();
       }
 
@@ -871,20 +895,38 @@
       }
 
       centerOverview() {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        this.scale = Math.min(1.0, vw / 1400);
-        this.camX = (vw - 1200 * this.scale) / 2;
-        this.camY = (vh - 600 * this.scale) / 2;
-        this.updateTransform();
+        this.fitToContent();
       }
 
       centerSubsystems() {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        this.scale = 0.95;
-        this.camX = (vw - 1050 * this.scale) / 2;
-        this.camY = (vh - 500 * this.scale) / 2;
+        this.fitToContent();
+      }
+
+      // Fit the rendered nodes into the viewport, whatever their positions and sizes.
+      fitToContent() {
+        const vw = this.viewport.clientWidth;
+        const vh = this.viewport.clientHeight;
+        const nodes = Array.from(this.nodesContainer.children);
+        // Hidden or zero-size viewport (background tab, collapsed pane): keep the
+        // current camera and let the ResizeObserver fit once there is room.
+        if (!nodes.length || vw === 0 || vh === 0) return;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nodes.forEach((el) => {
+          minX = Math.min(minX, el.offsetLeft);
+          minY = Math.min(minY, el.offsetTop);
+          maxX = Math.max(maxX, el.offsetLeft + el.offsetWidth);
+          maxY = Math.max(maxY, el.offsetTop + el.offsetHeight);
+        });
+
+        const pad = 80;
+        const contentW = Math.max(1, maxX - minX);
+        const contentH = Math.max(1, maxY - minY);
+        const fit = Math.min((vw - pad * 2) / contentW, (vh - pad * 2) / contentH);
+        this.scale = Math.min(1.0, Math.max(0.3, fit));
+        this.camX = (vw - contentW * this.scale) / 2 - minX * this.scale;
+        this.camY = (vh - contentH * this.scale) / 2 - minY * this.scale;
+        this.cameraMovedByUser = false;
         this.updateTransform();
       }
 
@@ -921,8 +963,8 @@
           if (sys.metrics) {
             metricsHtml = Object.entries(sys.metrics).map(([k, v]) => `
               <div class="metric-row">
-                <span>${k}</span>
-                <span class="metric-val">${v}</span>
+                <span>${esc(k)}</span>
+                <span class="metric-val">${esc(v)}</span>
               </div>
             `).join("");
           }
@@ -932,11 +974,11 @@
             <div class="node-header">
               <div class="node-icon-box">${iconChar}</div>
               <div class="node-title-group">
-                <h3>${sys.name}</h3>
-                <div class="node-subtitle">${sys.badge}</div>
+                <h3>${esc(sys.name)}</h3>
+                <div class="node-subtitle">${esc(sys.badge)}</div>
               </div>
             </div>
-            <div class="node-body">${sys.summary}</div>
+            <div class="node-body">${esc(sys.summary)}</div>
             <div class="node-metrics">
               ${metricsHtml}
             </div>
@@ -980,12 +1022,12 @@
 
           card.innerHTML = `
             <div class="drag-handle" title="Drag to reposition"></div>
-            <div class="subsystem-badge">${n.badge}</div>
-            <div class="subsystem-title">${n.name}</div>
-            <div class="subsystem-desc" style="margin-top: 8px;">${n.summary}</div>
+            <div class="subsystem-badge">${esc(n.badge)}</div>
+            <div class="subsystem-title">${esc(n.name)}</div>
+            <div class="subsystem-desc" style="margin-top: 8px;">${esc(n.summary)}</div>
             ${n.details?.sourceLocation ? `
               <div style="margin-top: 10px;">
-                <span class="code-pill">${n.details.sourceLocation}</span>
+                <span class="code-pill">${esc(n.details.sourceLocation)}</span>
               </div>
             ` : ""}
           `;
@@ -1054,7 +1096,7 @@
             badge.style.top = `${midY}px`;
             badge.innerHTML = `
               <div class="protocol-dot"></div>
-              <span>${conn.protocol}</span>
+              <span>${esc(conn.protocol)}</span>
             `;
             badge.addEventListener("click", () => this.inspectConnector(conn));
             this.badgesContainer.appendChild(badge);
@@ -1098,7 +1140,7 @@
             badge.style.left = `${midX}px`;
             badge.style.top = `${midY}px`;
             badge.style.borderColor = "rgba(192, 132, 252, 0.4)";
-            badge.innerHTML = `<span style="color:#d8b4fe; font-size:11px;">${l.label}</span>`;
+            badge.innerHTML = `<span style="color:#d8b4fe; font-size:11px;">${esc(l.label)}</span>`;
             this.badgesContainer.appendChild(badge);
           });
         }
@@ -1136,7 +1178,7 @@
             <div class="crumb-trail">
               <span class="crumb-item" style="color: #64748b;">Overworld</span>
               <span style="color: rgba(255,255,255,0.2);">&sol;</span>
-              <span class="crumb-item active">${sys ? sys.name : "Subsystem"}</span>
+              <span class="crumb-item active">${sys ? esc(sys.name) : "Subsystem"}</span>
               <span class="esc-hint">ESC</span>
             </div>
           `;
@@ -1156,10 +1198,10 @@
         if (conn.endpoints) {
           endpointsList = conn.endpoints.map(ep => `
             <div class="endpoint-card">
-              <span class="endpoint-method method-${ep.method}">${ep.method}</span>
-              <span class="endpoint-path">${ep.path}</span>
-              <div class="endpoint-desc">${ep.desc}</div>
-              <div class="endpoint-contract">${ep.contract}</div>
+              <span class="endpoint-method method-${esc(ep.method)}">${esc(ep.method)}</span>
+              <span class="endpoint-path">${esc(ep.path)}</span>
+              <div class="endpoint-desc">${esc(ep.desc)}</div>
+              <div class="endpoint-contract">${esc(ep.contract)}</div>
             </div>
           `).join("");
         }
@@ -1167,28 +1209,28 @@
         let specsRows = "";
         if (conn.specs) {
           specsRows = Object.entries(conn.specs).map(([k, v]) => `
-            <div class="info-label">${k}</div>
-            <div class="info-val">${v}</div>
+            <div class="info-label">${esc(k)}</div>
+            <div class="info-val">${esc(v)}</div>
           `).join("");
         }
 
         const html = `
           <div style="font-size: 13px; color: #94a3b8; margin-bottom: 18px;">
-            ${conn.summary}
+            ${esc(conn.summary)}
           </div>
 
           <div class="section-title">Connection Topology</div>
           <div class="info-grid" style="margin-bottom: 20px;">
             <div class="info-label">Source</div>
-            <div class="info-val" style="color:#fff; font-weight:600;">${fromNode?.name || conn.from}</div>
+            <div class="info-val" style="color:#fff; font-weight:600;">${esc(fromNode?.name || conn.from)}</div>
             <div class="info-label">Target</div>
-            <div class="info-val" style="color:#fff; font-weight:600;">${toNode?.name || conn.to}</div>
+            <div class="info-val" style="color:#fff; font-weight:600;">${esc(toNode?.name || conn.to)}</div>
             <div class="info-label">Protocol</div>
-            <div class="info-val">${conn.protocol}</div>
+            <div class="info-val">${escOrDash(conn.protocol)}</div>
             <div class="info-label">Port</div>
-            <div class="info-val"><span class="code-pill">${conn.port}</span></div>
+            <div class="info-val"><span class="code-pill">${escOrDash(conn.port)}</span></div>
             <div class="info-label">Auth Guard</div>
-            <div class="info-val">${conn.auth}</div>
+            <div class="info-val">${escOrDash(conn.auth)}</div>
             ${specsRows}
           </div>
 
@@ -1209,36 +1251,38 @@
         let metricsRows = "";
         if (sys.metrics) {
           metricsRows = Object.entries(sys.metrics).map(([k, v]) => `
-            <div class="info-label">${k}</div>
-            <div class="info-val"><span class="code-pill">${v}</span></div>
+            <div class="info-label">${esc(k)}</div>
+            <div class="info-val"><span class="code-pill">${esc(v)}</span></div>
           `).join("");
         }
 
         const html = `
           <div style="font-size: 13px; color: #94a3b8; margin-bottom: 18px;">
-            ${sys.summary}
+            ${esc(sys.summary)}
           </div>
 
           <div class="section-title">Realm Specifications</div>
           <div class="info-grid">
             <div class="info-label">System ID</div>
-            <div class="info-val"><span class="code-pill">${sys.id}</span></div>
+            <div class="info-val"><span class="code-pill">${esc(sys.id)}</span></div>
             <div class="info-label">Component Type</div>
-            <div class="info-val">${sys.type}</div>
+            <div class="info-val">${esc(sys.type)}</div>
             ${metricsRows}
           </div>
 
           <div class="section-title">Subsystem Description</div>
           <div style="color: #cbd5e1; font-size: 12.5px; margin-bottom: 20px;">
-            ${sys.internal?.description || "No further details available."}
+            ${esc(sys.internal?.description || "No further details available.")}
           </div>
 
-          <button class="back-nav-btn" style="width: 100%; justify-content: center; padding: 10px;" onclick="app.drillIntoSystem('${sys.id}')">
-            Enter ${sys.name} Realm &rarr;
+          <button class="back-nav-btn" style="width: 100%; justify-content: center; padding: 10px;" data-action="enter-system">
+            Enter ${esc(sys.name)} Realm &rarr;
           </button>
         `;
 
         document.getElementById("inspector-content").innerHTML = html;
+        document.querySelector('#inspector-content [data-action="enter-system"]')
+          .addEventListener("click", () => this.drillIntoSystem(sys.id));
         this.inspector.classList.add("open");
       }
 
@@ -1251,22 +1295,22 @@
         let detailsList = "";
         if (node.details) {
           detailsList = Object.entries(node.details).map(([k, v]) => `
-            <div class="info-label">${k}</div>
-            <div class="info-val">${k === 'sourceLocation' ? `<span class="code-pill">${v}</span>` : v}</div>
+            <div class="info-label">${esc(k)}</div>
+            <div class="info-val">${k === 'sourceLocation' ? `<span class="code-pill">${esc(v)}</span>` : esc(v)}</div>
           `).join("");
         }
 
         const html = `
           <div style="font-size: 13px; color: #94a3b8; margin-bottom: 18px;">
-            ${node.summary}
+            ${esc(node.summary)}
           </div>
 
           <div class="section-title">Contract & Invariants</div>
           <div class="info-grid">
             <div class="info-label">ID</div>
-            <div class="info-val"><span class="code-pill">${node.id}</span></div>
+            <div class="info-val"><span class="code-pill">${esc(node.id)}</span></div>
             <div class="info-label">Archetype</div>
-            <div class="info-val">${node.type}</div>
+            <div class="info-val">${esc(node.type)}</div>
             ${detailsList}
           </div>
         `;
